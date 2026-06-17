@@ -1,32 +1,89 @@
 ﻿using Application.DTOs;
+using Application.Interfaces;
 using Application.Interfaces.Services;
+using AutoMapper;
+using Domain.Entities;
 
 namespace Application.Services;
 
 public class ProductService : IProductService
 {
-    public Task<int> CreateAsync(CreateProductDto dto)
+    private readonly IProductRepository _productRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
+
+    public ProductService(
+        IProductRepository productRepository,
+        IUnitOfWork unitOfWork,
+        IMapper mapper)
     {
-        throw new NotImplementedException();
+        _productRepository = productRepository;
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
     }
 
-    public Task DeleteAsync(int id)
+    // Methods will be added below
+
+    public async Task<IEnumerable<ProductResponseDto>> GetAllAsync()
     {
-        throw new NotImplementedException();
+        var products = await _productRepository.GetAllAsync();
+
+        return _mapper.Map<IEnumerable<ProductResponseDto>>(products);
     }
 
-    public Task<IEnumerable<ProductResponseDto>> GetAllAsync()
+    public async Task<ProductResponseDto?> GetByIdAsync(int id)
     {
-        throw new NotImplementedException();
+        var product = await _productRepository.GetByIdAsync(id);
+
+        if (product == null)
+            return null;
+
+        return _mapper.Map<ProductResponseDto>(product);
     }
 
-    public Task<ProductResponseDto?> GetByIdAsync(int id)
+    public async Task<int> CreateAsync(CreateProductDto dto)
     {
-        throw new NotImplementedException();
+        var product = _mapper.Map<Product>(dto);
+
+        product.CreatedBy = "System";
+
+        product.CreatedOn = DateTime.UtcNow;
+
+        await _productRepository.AddAsync(product);
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return product.Id;
+    }
+    public async Task UpdateAsync(int id, UpdateProductDto dto)
+    {
+        var product = await _productRepository.GetByIdAsync(id);
+
+        if (product == null)
+            throw new Exception("Product not found");
+
+        product.ProductName = dto.ProductName;
+
+        product.ModifiedBy = "System";
+
+        product.ModifiedOn = DateTime.UtcNow;
+
+        _productRepository.Update(product);
+
+        await _unitOfWork.SaveChangesAsync();
     }
 
-    public Task UpdateAsync(int id, UpdateProductDto dto)
+    public async Task DeleteAsync(int id)
     {
-        throw new NotImplementedException();
+        var product = await _productRepository.GetByIdAsync(id);
+
+        if (product == null)
+            throw new Exception("Product not found");
+
+        _productRepository.Delete(product);
+
+        await _unitOfWork.SaveChangesAsync();
     }
+
+
 }
